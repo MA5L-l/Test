@@ -83,8 +83,14 @@ def local_ip():
 def ping(ip):
     flag = "-n" if platform.system() == "Windows" else "-c"
     wflag = ["-w", "500"] if platform.system() == "Windows" else ["-W", "1"]
-    subprocess.run(["ping", flag, "1", *wflag, str(ip)],
-                   stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    try:
+        subprocess.run(["ping", flag, "1", *wflag, str(ip)], timeout=3,
+                       stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        # pas de ping : une tentative TCP suffit a remplir la table ARP
+        with socket.socket() as s:
+            s.settimeout(0.3)
+            s.connect_ex((str(ip), 80))
 
 
 def arp_table():
@@ -94,7 +100,10 @@ def arp_table():
     except FileNotFoundError:
         out = ""
     if not out and platform.system() == "Linux":
-        out = subprocess.run(["ip", "neigh"], capture_output=True, text=True).stdout
+        try:
+            out = subprocess.run(["ip", "neigh"], capture_output=True, text=True).stdout
+        except FileNotFoundError:
+            out = open("/proc/net/arp").read()
     table = {}
     for line in out.splitlines():
         ip = re.search(r"(\d+\.\d+\.\d+\.\d+)", line)
