@@ -82,7 +82,7 @@ def local_ip():
 
 def ping(ip):
     flag = "-n" if platform.system() == "Windows" else "-c"
-    wflag = ["-w", "500"] if platform.system() == "Windows" else ["-W", "1"]
+    wflag = {"Windows": ["-w", "500"], "Darwin": ["-t", "1"]}.get(platform.system(), ["-W", "1"])
     try:
         subprocess.run(["ping", flag, "1", *wflag, str(ip)], timeout=3,
                        stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
